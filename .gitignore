@@ -1,0 +1,14 @@
+# Backend
+Backend/venv/
+*.pyc
+__pycache__/
+db.sqlite3
+
+# Frontend
+Frontend/coreui-free-react-admin-template/node_modules/
+Frontend/coreui-free-react-admin-template/build/
+Frontend/coreui-free-react-admin-template/.env
+
+# System
+.DS_Store
+*.log
