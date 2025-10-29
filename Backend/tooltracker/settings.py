@@ -37,12 +37,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-     'rest_framework',
-         'tools',
-          'drf_yasg',
-           'corsheaders',
+    'rest_framework',
+    'drf_yasg',
+    'corsheaders',
+    'accounts',   # ✅ add this first
+    'tools',      # ✅ tools after accounts
 ]
-AUTH_USER_MODEL = 'tools.User'
+
+AUTH_USER_MODEL = 'accounts.User'  # ✅ must point to accounts app now
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

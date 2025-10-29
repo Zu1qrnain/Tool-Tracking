@@ -4,28 +4,52 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 from .models import Tool, Issuance, Calibration, Maintenance
-from .serializers import ToolSerializer, IssuanceSerializer, RegisterSerializer, CalibrationSerializer, MaintenanceSerializer
+from accounts.serializers import RegisterSerializer
+from .serializers import (
+    ToolSerializer,
+    IssuanceSerializer,
+    RegisterSerializer,
+    CalibrationSerializer,
+    MaintenanceSerializer
+)
 
 
-# List all tools
+# ===============================
+# Tool List View (Filtered by Department)
+# ===============================
 class ToolListView(generics.ListAPIView):
-    queryset = Tool.objects.all()
     serializer_class = ToolSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
+    def get_queryset(self):
+        """Return tools only from the user's department."""
+        user = self.request.user
+        if user.is_superuser or user.role == 'admin':
+            return Tool.objects.all()  # Admin sees all tools
+        elif user.department:
+            return Tool.objects.filter(department=user.department)  # Normal user sees own dept tools
+        return Tool.objects.none()  # If user has no department, show nothing
 
-# Borrow a tool
+
+# ===============================
+# Borrow a Tool
+# ===============================
 class BorrowToolView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
     def post(self, request):
         tool_id = request.data.get('tool_id')
+
         try:
             tool = Tool.objects.get(id=tool_id)
         except Tool.DoesNotExist:
             return Response({'error': 'Tool not found'}, status=404)
+
+        # ✅ Check if tool belongs to user's department
+        if request.user.department and tool.department != request.user.department:
+            return Response({'error': 'You are not allowed to borrow this department’s tool.'}, status=403)
 
         if tool.quantity_available < 1:
             return Response({'error': 'No tool available'}, status=400)
@@ -43,7 +67,9 @@ class BorrowToolView(APIView):
         return Response(serializer.data)
 
 
+# ===============================
 # My Issuances
+# ===============================
 class MyIssuancesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -54,25 +80,25 @@ class MyIssuancesView(APIView):
         return Response(serializer.data)
 
 
+# ===============================
 # Return Tool
-# Return Tool
+# ===============================
 class ReturnToolView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def post(self, request, issuance_id):  # match urls.py
+    def post(self, request, issuance_id):
         try:
             issuance = Issuance.objects.get(pk=issuance_id, user=request.user)
         except Issuance.DoesNotExist:
             return Response({'error': 'Issuance not found'}, status=404)
 
-        # Only update if not already returned
         if issuance.status != "returned":
             issuance.status = "returned"
             issuance.return_date = timezone.now()
             issuance.save()
 
-            # Increase the tool quantity
+            # Increase available count
             tool = issuance.tool
             tool.quantity_available += 1
             tool.save()
@@ -80,24 +106,43 @@ class ReturnToolView(APIView):
         return Response({"message": "Tool returned successfully."})
 
 
-
+# ===============================
 # Register new user
+# ===============================
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
 
-# List Calibration data
+# ===============================
+# Calibration List
+# ===============================
 class CalibrationListView(generics.ListAPIView):
-    queryset = Calibration.objects.all()
     serializer_class = CalibrationSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role == 'admin':
+            return Calibration.objects.all()
+        elif user.department:
+            return Calibration.objects.filter(tool__department=user.department)
+        return Calibration.objects.none()
 
-# List Maintenance data
+
+# ===============================
+# Maintenance List
+# ===============================
 class MaintenanceListView(generics.ListAPIView):
-    queryset = Maintenance.objects.all()
     serializer_class = MaintenanceSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role == 'admin':
+            return Maintenance.objects.all()
+        elif user.department:
+            return Maintenance.objects.filter(tool__department=user.department)
+        return Maintenance.objects.none()

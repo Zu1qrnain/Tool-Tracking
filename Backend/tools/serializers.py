@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import User, Tool, Issuance, Maintenance, Calibration, Department
+from accounts.models import User, Department
+from .models import Tool, Issuance, Maintenance, Calibration
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -9,16 +10,20 @@ class DepartmentSerializer(serializers.ModelSerializer):
         model = Department
         fields = '__all__'
 
+
 class UserSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
+
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'role', 'department']
 
+
 class ToolSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tool
-        fields = ['id', 'name', 'category', 'quantity_total', 'quantity_available']
+        fields = ['id', 'name', 'category', 'quantity_total', 'quantity_available', 'department']
+
 
 class IssuanceSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -31,11 +36,14 @@ class IssuanceSerializer(serializers.ModelSerializer):
         model = Issuance
         fields = ['id', 'user', 'tool', 'tool_id', 'borrow_date', 'return_date', 'status']
 
+
 class MaintenanceSerializer(serializers.ModelSerializer):
     tool = ToolSerializer(read_only=True)
+
     class Meta:
         model = Maintenance
         fields = ['id', 'tool', 'maintenance_date', 'performed_by', 'notes']
+
 
 class CalibrationSerializer(serializers.ModelSerializer):
     tool = ToolSerializer(read_only=True)
@@ -44,7 +52,6 @@ class CalibrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Calibration
         fields = ['id', 'tool', 'calibration_date', 'performed_by', 'notes']
-
 
 
 # ------------------ New Serializer for Registration ------------------
